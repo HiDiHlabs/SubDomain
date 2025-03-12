@@ -29,6 +29,6 @@ jobs:
 
       - name: Deploy Release Version (published releases)
         if: github.event_name == 'release' && github.event.action == 'published'
-        run: |
+        run: |-
           VERSION=${GITHUB_REF#refs/tags/}  # Extracts tag name
           mike deploy --push --update-aliases $VERSION stable
