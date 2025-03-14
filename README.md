@@ -19,6 +19,7 @@ grid data.
 based on distance
 - Test if circular kernels can improve over square box kernels
 - Test Leiden clustering (and others?) instead of KMeans
+- Come up with new name; subdomain seems to exist on PyPI already
 
 ## Installation
 
