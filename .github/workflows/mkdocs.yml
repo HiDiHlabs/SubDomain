@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r ./docs/requirements.txt
 
+      - name: Configure Git Credentials
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Deploy Development Version (main branch)
         if: github.ref == 'refs/heads/main'
         run: mike deploy --push latest
