@@ -1,0 +1,11 @@
+*.egg-info
+build
+__pycache__
+
+# Sphinx
+site
+
+*.ipynb
+
+# VS Code project settings
+.vscode/

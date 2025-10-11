@@ -1,0 +1,39 @@
+name: mkdocs
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: pip install -r ./docs/requirements.txt
+
+      - name: Configure Git Credentials
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy Development Version (main branch)
+        if: github.ref == 'refs/heads/main'
+        run: mike deploy --push latest
+
+      - name: Deploy Release Version (published releases)
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |-
+          VERSION=${GITHUB_REF#refs/tags/}  # Extracts tag name
+          mike deploy --push --update-aliases $VERSION stable
