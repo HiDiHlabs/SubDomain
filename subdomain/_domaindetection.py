@@ -23,7 +23,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.mixture import GaussianMixture
 import warnings
 
-_VALID_METHODS = {"circular", "square"} 
+_VALID_METHODS = {"circle", "square", "gaussian"} 
 
 @partial(jax.jit, static_argnames="s")
 def _bin_array(arr: jax.Array, s: int) -> jax.Array:
@@ -49,7 +49,7 @@ def _neighborhood(
     return convolve(arr, kernel, mode="same")
 
 @partial(jax.jit, static_argnames="r")
-def _circular_neighborhood(
+def _circle_neighborhood(
     arr: jax.Array,
     r: int,
 ) -> jax.Array:
@@ -158,7 +158,7 @@ class SubDomain:
         self, 
         binsize: int, 
         radius: int, *,
-        neighborhood_type: str = "circular", 
+        neighborhood_type: str = "circle", 
         normalize: bool = True,  
         sigma: float = 1.0
     ):
@@ -176,7 +176,7 @@ class SubDomain:
             `2 * binsize * (radius + 1)`
         neighborhood_type : str, optional
             Method for defining the neighborhood shape. Options:
-                - "circular": A circular neighborhood based on Euclidean distance.
+                - "circle": A circular neighborhood based on Euclidean distance.
                 - "square": A square neighborhood with all elements in the kernel.
                 - "gaussian": A Gaussian-weighted neighborhood.
         normalize : bool, optional
@@ -185,6 +185,12 @@ class SubDomain:
             Standard deviation for the Gaussian kernel, if `use_gaussian` is True.
         """
         self.binsize = binsize
+
+        if neighborhood_type not in _VALID_METHODS:
+            raise ValueError(
+                f"Unknown neighborhood_type: {neighborhood_type}. "
+                f"Supported types are: {sorted(_VALID_METHODS)}"
+            )
 
         # TODO improve by allocating first?
         if neighborhood_type == "gaussian":
@@ -201,10 +207,10 @@ class SubDomain:
                 for i in range(self.n_labels)
             ]
             )
-        elif neighborhood_type == "circular":
+        elif neighborhood_type == "circle":
             mtx = jnp.dstack(
             [
-                _circular_neighborhood(_bin_array(self.label_map == i, binsize), radius)
+                _circle_neighborhood(_bin_array(self.label_map == i, binsize), radius)
                 for i in range(self.n_labels)
             ]
             )
@@ -309,7 +315,7 @@ class SubDomain:
             weights = cp.concatenate([data[mask], data[mask]])
         else:
             # CPU mode: fit and compute k-NN graph
-            nn_model = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, radius_knn=radius_knn)
+            nn_model = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, radius=radius_knn)
             nn_model.fit(mtx_valid)
             # adjacency = nn_model.kneighbors_graph(mtx_valid,mode=mode)
             # adjacency = adjacency + adjacency.T
@@ -502,7 +508,7 @@ class SubDomain:
         self,
         binsize: int = 8,
         radius: int = 10,
-        neighborhood_type: str = "circular",
+        neighborhood_type: str = "circle",
         n_clusters: int = 10,
         sigma: float = 1.0,
         *,
@@ -535,7 +541,7 @@ class SubDomain:
             `2 * binsize * (radius + 1)`
         neighborhood_type : str, optional
             Method for defining the neighborhood shape. Options:
-            - "circular": A circular neighborhood based on Euclidean distance.
+            - "circle": A circular neighborhood based on Euclidean distance.
             - "square": A square neighborhood with all elements in the kernel.
             - "gaussian": A Gaussian-weighted neighborhood.
         n_clusters : int
