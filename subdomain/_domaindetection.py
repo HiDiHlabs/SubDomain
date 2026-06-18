@@ -170,7 +170,7 @@ class SubDomain:
             Random state for reproducibility.
         kwargs
             Other keyword arguments will be passed to [sklearn.cluster.KMeans][]
-            or [cuml.KMeans][].
+            or [cuml.cluster.KMeans][].
         """
         if gpu:
             import cuml
@@ -227,7 +227,7 @@ class SubDomain:
             Random state for reproducibility.
         kwargs
             Other keyword arguments will be passed to [sklearn.cluster.KMeans][]
-            or [cuml.KMeans][].
+            or [cuml.cluster.KMeans][].
         """
         self.calculate_neighborhoods(binsize, radius)
 
