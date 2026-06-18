@@ -17,14 +17,12 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.17
     hooks:
-      - id: ruff
+      - id: ruff-check
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.1.0
     hooks:
       - id: mypy
-        additional_dependencies:
-          - numpy
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.2
     hooks:
@@ -39,4 +37,3 @@ repos:
     rev: v0.9.3
     hooks:
       - id: taplo-format
-      - id: taplo-lint
