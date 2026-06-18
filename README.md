@@ -4,7 +4,7 @@
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![Docs](https://img.shields.io/badge/Docs-online-blue)](https://HiDiHlabs.github.io/SubDomain/)
+[![Docs](https://img.shields.io/badge/Docs-online-blue)](https://HiDiHlabs.github.io/SubDomain/latest/)
 <!--
 [![PyPI](https://img.shields.io/pypi/v/subdomain)](https://pypi.org/project/subdomain)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/subdomain/README.html)
@@ -39,12 +39,12 @@ conda install bioconda::subdomain
 -->
 
 For detailed installation instructions please refer to the
-[documentation](https://HiDiHlabs.github.io/SubDomain/install.html).
+[documentation](https://HiDiHlabs.github.io/SubDomain/latest/install.html).
 
 ## Documentation
 
 For documentation of the package please refer to
-[GitHub pages](https://HiDiHlabs.github.io/SubDomain/).
+[GitHub pages](https://HiDiHlabs.github.io/SubDomain/latest/).
 
 ## Citations
 
