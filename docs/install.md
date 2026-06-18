@@ -1,5 +1,11 @@
 # Installation
 
+`subdomain` can currently be installed from GitHub via
+
+```sh
+pip install git+https://github.com/HiDiHlabs/SubDomain.git
+```
+<!--
 To install ``subdomain`` from [PyPI](https://pypi.org/project/subdomain/) just run
 
 ```
@@ -11,13 +17,14 @@ or alternatively install from [conda-forge](https://anaconda.org/conda-forge/sub
 ```
 conda install conda-forge::subdomain
 ```
+-->
 
 ## GPU support
 
 For most users GPU support can be installed via
 
 ```
-pip install 'subdomain[cuda12]' --extra-index-url=https://pypi.nvidia.com
+pip install 'subdomain[cuda12] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
 ```
 
 However, this may not work in all circumstances (depending on the system setup and
