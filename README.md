@@ -20,7 +20,6 @@ grid data.
 `subdomain` can currently be installed from GitHub via
 
 ```sh
-# PyPI
 pip install git+https://github.com/HiDiHlabs/SubDomain.git
 ```
 
