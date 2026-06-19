@@ -50,6 +50,7 @@ extra:
 
 plugins:
   - search
+  - mkdocs-jupyter
   - mkdocstrings:
       default_handler: python
       enable_inventory: true
