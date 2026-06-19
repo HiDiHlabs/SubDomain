@@ -19,10 +19,11 @@ from seaborn.matrix import ClusterGrid
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 
-_VALID_METHODS = {"circle", "square", "gaussian"}
+_VALID_NEIGHH = {"circle", "square", "gaussian"}
+_VALID_CLUSTER = {"kmeans", "gmm"}
 
 
-@partial(jax.jit, static_argnames="s")
+@jax.jit(static_argnames="s")
 def _bin_array(arr: jax.Array, s: int) -> jax.Array:
     """Bins an array using a box kernel of size s using strided convolution."""
     kernel = jnp.ones((1, 1, s, s), arr.dtype)  # Box kernel
@@ -32,29 +33,16 @@ def _bin_array(arr: jax.Array, s: int) -> jax.Array:
     return jnp.squeeze(bins)
 
 
-# gaussian i) via FFT but kernel likely not large enough ii) via 2x 1D convolutions
-
-
-@partial(jax.jit, static_argnames="r")
-def _neighborhood(
-    arr: jax.Array,
-    r: int,
-) -> jax.Array:
-    """Generates square neighborhood based on the specified method.
-    The sum of values within the neighborhood of each pixel is computed via convolution with the appropriate kernel."""
+@jax.jit(static_argnames="r")
+def _square_neighborhood(arr: jax.Array, r: int) -> jax.Array:
     d = 2 * r + 1
     kernel = jnp.ones((d, d), dtype=arr.dtype)
     return convolve(arr, kernel, mode="same")
 
 
 # This is a circle kernel, which is extended by me
-@partial(jax.jit, static_argnames="r")
-def _circle_neighborhood(
-    arr: jax.Array,
-    r: int,
-) -> jax.Array:
-    """Generates circular neighborhood based on the specified method.
-    The sum of values within the neighborhood of each pixel is computed via convolution with the appropriate kernel."""
+@jax.jit(static_argnames="r")
+def _circle_neighborhood(arr: jax.Array, r: int) -> jax.Array:
     y, x = jnp.ogrid[-r : r + 1, -r : r + 1]
     mask = (x**2 + y**2) <= r**2
     kernel = mask.astype(arr.dtype)
@@ -70,16 +58,14 @@ def _gaussian_kernel_1d(r: int, sigma: float):
     return phi_x
 
 
-@partial(jax.jit, static_argnames=("r", "sigma"))
+@jax.jit(static_argnames=("r", "sigma"))
 def _gaussian_neighborhood(arr: jax.Array, r: int, sigma: float) -> jax.Array:
     """Build the neighborhood consolidation matrix for each pixel using a Gaussian-weighted
     sum within a neighborhood of radius r, approximated via two 1D convolutions."""
     kernel = _gaussian_kernel_1d(r, sigma)
-    # First apply 1D Gaussian convolution along the horizontal direction
-    result_row = convolve(arr, kernel[None, :], mode="same")
-    # Then apply 1D Gaussian convolution along the vertical direction
-    result_final = convolve(result_row, kernel[:, None], mode="same")
-    return result_final
+    # 2D Gaussian smoothing via 2x 1D (separability of Gaussian)
+    arr = convolve(arr, kernel[None, :], mode="same")
+    return convolve(arr, kernel[:, None], mode="same")
 
 
 @jax.jit
@@ -143,26 +129,27 @@ class SubDomain:
         label_name: str = "celltype",
         labels: Iterable[str] | None = None,
     ):
-        self.label_map = label_map
-        self.n_labels: int = int(self.label_map.max()) + 1
-        self.label_name = label_name
-
         # TODO validate the unique indices
+        n_labels = int(label_map.max()) + 1
 
         if labels is not None:
             labels = list(labels)
-            if len(labels) != self.n_labels:
+            if len(labels) != n_labels:
                 raise ValueError(
                     "Length of `labels` must match the number of labels in `label_map`."
                 )
+
         self.labels = labels
+        self.label_map = label_map
+        self.n_labels = n_labels
+        self.label_name = label_name
 
     def calculate_neighborhoods(
         self,
         binsize: int,
         radius: int,
         *,
-        neighborhood_type: str = "circle",
+        neighborhood: str = "circle",
         normalize: bool = True,
         sigma: float = 1.0,
     ):
@@ -178,7 +165,7 @@ class SubDomain:
         radius : int
             Radius for the neighborhood aggregation. The size of the neighborhood will be
             `2 * binsize * (radius + 1)`
-        neighborhood_type : str, optional
+        neighborhood : str, optional
             Method for defining the neighborhood shape. Options:
                 - "circle": A circular neighborhood based on Euclidean distance.
                 - "square": A square neighborhood with all elements in the kernel.
@@ -186,42 +173,32 @@ class SubDomain:
         normalize : bool, optional
             Whether to normalize the neighborhood of each bin (L1-norm).
         sigma : float, optional
-            Standard deviation for the Gaussian kernel, if `use_gaussian` is True.
+            Standard deviation for the Gaussian kernel, if `neighborhood` is 'gaussian'.
         """
-        self.binsize = binsize
 
-        if neighborhood_type not in _VALID_METHODS:
-            raise ValueError(
-                f"Unknown neighborhood_type: {neighborhood_type}. "
-                f"Supported types are: {sorted(_VALID_METHODS)}"
-            )
+        match neighborhood:
+            case "gaussian":
+                neighborhood_fn = partial(_gaussian_neighborhood, sigma=sigma)
+
+            case "square":
+                neighborhood_fn = _square_neighborhood
+
+            case "circle":
+                neighborhood_fn = _circle_neighborhood
+
+            case _:
+                raise ValueError(
+                    f"Unknown `neighborhood`: {neighborhood}. "
+                    f"Supported types are: {sorted(_VALID_NEIGHH)}"
+                )
 
         # TODO improve by allocating first?
-        if neighborhood_type == "gaussian":
-            mtx = jnp.dstack(
-                [
-                    _gaussian_neighborhood(
-                        _bin_array(self.label_map == i, binsize), radius, sigma
-                    )
-                    for i in range(self.n_labels)
-                ]
-            )
-        elif neighborhood_type == "square":
-            mtx = jnp.dstack(
-                [
-                    _neighborhood(_bin_array(self.label_map == i, binsize), radius)
-                    for i in range(self.n_labels)
-                ]
-            )
-        elif neighborhood_type == "circle":
-            mtx = jnp.dstack(
-                [
-                    _circle_neighborhood(
-                        _bin_array(self.label_map == i, binsize), radius
-                    )
-                    for i in range(self.n_labels)
-                ]
-            )
+        mtx = jnp.dstack(
+            [
+                neighborhood_fn(_bin_array(self.label_map == i, binsize), radius)
+                for i in range(self.n_labels)
+            ]
+        )
 
         if normalize:
             l1_norm = mtx.sum(axis=2)
@@ -230,9 +207,17 @@ class SubDomain:
             # set to nan
             mtx = mtx.at[l1_norm == 0, :].set(jnp.nan)
         self.neighborhoods = mtx
+        self.binsize = binsize
 
+    # GMMs cluster on GPU and CPU was added by Jing Chen
     def cluster_neighborhoods(
-        self, n_clusters: int, *, gpu: bool = False, random_state: int = 1, **kwargs
+        self,
+        n_clusters: int,
+        method: str = "kmeans",
+        *,
+        gpu: bool = False,
+        random_state: int = 1,
+        **kwargs,
     ):
         """Cluster the aggregated neighborhoods.
 
@@ -243,105 +228,78 @@ class SubDomain:
         ----------
         n_clusters : int
             Number of clusters.
+        method : str, optional
+            TODO
         gpu : bool, optional
             Whether to use the GPU for KMeans clustering.
         random_state : int, optional
             Random state for reproducibility.
         kwargs
-            Other keyword arguments will be passed to [sklearn.cluster.KMeans][]
-            or [cuml.KMeans][].
+            Other keyword arguments will be passed to [sklearn.cluster.KMeans][], [cuml.cluster.KMeans][],
+            [sklearn.mixture.GaussianMixture][], or [torchgmm.bayes.GaussianMixture][] depending on
+            the `method` and `gpu` parameters.
         """
-        if gpu:
-            import cuml
+        torch_tensor = False
+        match method:
+            case "kmeans":
+                if gpu:
+                    import cuml
 
-            kmeans = cuml.cluster.KMeans(
-                n_clusters=n_clusters,
-                random_state=random_state,
-                output_type="numpy",
-                n_init=10,
-                **kwargs,
-            )
-        else:
-            kmeans = KMeans(n_clusters=n_clusters, random_state=random_state, **kwargs)
+                    model = cuml.cluster.KMeans(
+                        n_clusters=n_clusters,
+                        random_state=random_state,
+                        output_type="numpy",
+                        **kwargs,
+                    )
+                else:
+                    model = KMeans(
+                        n_clusters=n_clusters, random_state=random_state, **kwargs
+                    )
+            case "gmm":
+                if gpu:
+                    import torch
+                    from torchgmm.bayes import GaussianMixture as TorchGaussianMixture
+
+                    # TODO: how to seed
+                    torch_tensor = True
+                    model = TorchGaussianMixture(num_components=n_clusters, **kwargs)
+                else:
+                    model = GaussianMixture(
+                        n_components=n_clusters, random_state=random_state, **kwargs
+                    )
+            case _:
+                raise ValueError(
+                    f"Unknown `method`: {method}. "
+                    f"Supported types are: {sorted(_VALID_CLUSTER)}"
+                )
 
         mtx_flat = _flatten_2d(self.neighborhoods)
         not_nan = ~jnp.isnan(mtx_flat).any(axis=1)
 
         domain = np.full(mtx_flat.shape[0], -1, dtype=np.int16)
-        domain[not_nan] = kmeans.fit_predict(mtx_flat[not_nan])
+        if torch_tensor:
+            # TODO is this needed?
+            prediction = model.fit_predict(
+                torch.tensor(mtx_flat[not_nan], dtype=torch.float32).cuda()
+            ).numpy(force=True)
+        else:
+            prediction = model.fit_predict(mtx_flat[not_nan])
+        domain[not_nan] = prediction
         self.domains = domain.reshape(self.neighborhoods.shape[:2])
         self.n_domains = n_clusters
 
-    # the next function implement the GMMs cluster on GPU and CPU and extended by Jing Chen
-    def gaussian_mixture_cluster_neighborhoods(
-        self,
-        num_components: int = 1,
-        *,
-        gpu: bool = False,
-        random_state: int = 1,
-        **kwargs,
-    ):
-        """Cluster the aggregated neighborhoods using a Gaussian Mixture Model (GMM).
-
-        Parameters
-        ----------
-        n_components : int, optional
-            Number of mixture components (clusters), by default 1.
-        gpu : bool, optional
-            If True, use GPU-accelerated GMM based on PyTorch; otherwise use scikit-learn, by default False.
-        random_state : int, optional
-            Random seed for reproducibility, by default 1.
-        kwargs : dict
-            Additional keyword arguments passed to the GMM model.
-
-        Updates
-        -------
-        self.domains : np.ndarray
-            Cluster labels reshaped to the original neighborhood grid.
-        self.n_domains : int
-            Number of clusters (same as n_components).
-        """
-        if gpu:
-            import torch
-            from torchgmm.bayes import GaussianMixture as TorchGaussianMixture
-
-            # Initialize GPU GMM
-            gm = TorchGaussianMixture(num_components=num_components, **kwargs)
-        else:
-            gm = GaussianMixture(
-                n_components=num_components, random_state=random_state, **kwargs
-            )
-
-        # Flatten the neighborhood matrix
-        mtx_flat = _flatten_2d(self.neighborhoods)
-        not_nan = ~jnp.isnan(mtx_flat).any(axis=1)
-        domain = np.full(mtx_flat.shape[0], -1, dtype=np.int16)
-
-        if gpu:
-            # Convert to torch tensor and move to GPU
-            tensor_data = torch.tensor(
-                np.copy(mtx_flat[not_nan]), dtype=torch.float32
-            ).cuda()  # use chatgpt to debug
-            preds = gm.fit_predict(tensor_data)
-            preds = preds.cpu().numpy()
-        else:
-            preds = gm.fit_predict(mtx_flat[not_nan])
-
-        domain[not_nan] = preds
-        self.domains = domain.reshape(self.neighborhoods.shape[:2])
-        self.n_domains = num_components
-
     def identify_domains(
         self,
+        n_clusters: int,
         binsize: int = 8,
         radius: int = 10,
-        neighborhood_type: str = "circle",
-        n_clusters: int = 10,
-        sigma: float = 1.0,
         *,
+        neighborhood: str = "circle",
+        normalize: bool = True,
+        sigma: float = 1.0,
+        clustering_method: str = "kmeans",
         gpu: bool = False,
         random_state: int = 1,
-        clustering_method: str = "kmeans",
         **kwargs,
     ):
         """Identify domains from labeled grid.
@@ -355,49 +313,52 @@ class SubDomain:
 
         Parameters
         ----------
+        n_clusters : int
+            Number of domains (clusters) to identify.
         binsize : int
             Size to bin the labeled grid by.
         radius : int
             Radius for the neighborhood aggregation. The size of the neighborhood will be
             `2 * binsize * (radius + 1)`
-        neighborhood_type : str, optional
+        neighborhood : str, optional
             Method for defining the neighborhood shape. Options:
-            - "circle": A circular neighborhood based on Euclidean distance.
-            - "square": A square neighborhood with all elements in the kernel.
-            - "gaussian": A Gaussian-weighted neighborhood.
-        n_clusters : int
-            Number of clusters for k-means.
+            - 'circle': A circular neighborhood based on Euclidean distance.
+            - 'square': A square neighborhood with all elements in the kernel.
+            - 'gaussian': A Gaussian-weighted neighborhood.
+        normalize : bool, optional
+            Whether to normalize the neighborhood of each bin (L1-norm).
         sigma : float, optional
+            TODO
+        clustering_method : str, optional
+            The clustering method to use. Options are:
+            - 'kmeans': Use KMeans clustering.
+            - 'gmm': Use Gaussian Mixture Model clustering.
         gpu: bool, optional
             Whether to use the GPU for KMeans clustering. The neighborhood aggregation will
             run by default on GPU if available.
         random_state : int, optional
             Random state for reproducibility.
-        clustering_method : str, optional
-            The clustering method to use. Options are:
-            - 'kmeans': Use KMeans clustering.
-            - 'gmm': Use Gaussian Mixture Model clustering.
-        normalize : bool, optional
-            Whether to normalize the neighborhood of each bin (L1-norm).
         kwargs
-            Other keyword arguments will be passed to [sklearn.cluster.KMeans][]
-            or [cuml.KMeans][].
+            Other keyword arguments will be passed to the clustering method.
+            See [subdomain.SubDomain.cluster_neighborhoods][] for details.
         """
-        self.calculate_neighborhoods(
-            binsize, radius, neighborhood_type=neighborhood_type, sigma=sigma
-        )
-        if clustering_method == "kmeans":
-            self.cluster_neighborhoods(
-                n_clusters, gpu=gpu, random_state=random_state, **kwargs
-            )
-        elif clustering_method == "gmm":
-            self.gaussian_mixture_cluster_neighborhoods(
-                num_components=n_clusters, gpu=gpu, **kwargs
-            )
-        else:
+        if neighborhood not in _VALID_NEIGHH:
             raise ValueError(
-                f"Invalid clustering method '{clustering_method}'. Choose either 'kmeans' or 'gmm'."
+                f"Unknown `neighborhood`: {neighborhood}. "
+                f"Supported types are: {sorted(_VALID_NEIGHH)}"
             )
+        if clustering_method not in _VALID_CLUSTER:
+            raise ValueError(
+                f"Unknown `clustering_method`: {clustering_method}. "
+                f"Supported types are: {sorted(_VALID_CLUSTER)}"
+            )
+
+        self.calculate_neighborhoods(
+            binsize, radius, neighborhood=neighborhood, normalize=normalize, sigma=sigma
+        )
+        self.cluster_neighborhoods(
+            n_clusters, clustering_method, gpu=gpu, random_state=random_state, **kwargs
+        )
 
     def domain_neighborhoods(self) -> pd.DataFrame:
         """Average neighborhood of the domains.
@@ -447,7 +408,7 @@ class SubDomain:
         )
 
     def rescale_domain_map(self) -> np.ndarray:
-        """Rescale domain map to original labeled grid size i.e. prior to binning."""
+        """Rescale domain map to original labeled grid size, i.e., prior to binning."""
         rescaled_domains = np.repeat(
             np.repeat(self.domains, self.binsize, axis=0), self.binsize, axis=1
         )[: self.label_map.shape[0], : self.label_map.shape[1]]
@@ -467,10 +428,10 @@ class SubDomain:
         ----------
         domain_palette
             Palette to use for the domain plot. Must be a valid argument for
-            [seaborn.color_palette][]]
+            [seaborn.color_palette][]
         label_palette
             Palette to use for the labeled grid plot. Must be a valid argument for
-            [seaborn.color_palette][]]
+            [seaborn.color_palette][]
         scale : tuple[float, str] | None
             Size of a pixel in the original labeled grid as a tuple of the value and
             the unit (must be one of nm, um, ...) e.g. `(5, 'um')`.
