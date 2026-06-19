@@ -21,10 +21,16 @@ conda install conda-forge::subdomain
 
 ## GPU support
 
-For most users GPU support can be installed via
+For most users GPU support can be installed for CUDA 12
 
-```
+```sh
 pip install 'subdomain[cuda12] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
+```
+
+or CUDA 13
+
+```sh
+pip install 'subdomain[cuda13] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
 ```
 
 However, this may not work in all circumstances (depending on the system setup and
