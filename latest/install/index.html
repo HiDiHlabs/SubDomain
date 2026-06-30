@@ -14,7 +14,7 @@
         <link rel="prev" href="..">
       
       
-        <link rel="next" href="../reference/">
+        <link rel="next" href="../tutorial/">
       
       
         
@@ -386,6 +386,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/" class="md-nav__link">
         
   
@@ -484,8 +511,11 @@ or alternatively install from [conda-forge](https://anaconda.org/conda-forge/sub
 -->
 
 <h2 id="gpu-support">GPU support</h2>
-<p>For most users GPU support can be installed via</p>
-<pre><code>pip install 'subdomain[cuda12] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
+<p>For most users GPU support can be installed for CUDA 12</p>
+<pre><code class="language-sh">pip install 'subdomain[cuda12] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
+</code></pre>
+<p>or CUDA 13</p>
+<pre><code class="language-sh">pip install 'subdomain[cuda13] @ git+https://github.com/HiDiHlabs/SubDomain.git' --extra-index-url=https://pypi.nvidia.com
 </code></pre>
 <p>However, this may not work in all circumstances (depending on the system setup and
 available CUDA installations). Therefore, we recommend to follow the respective install
@@ -493,6 +523,7 @@ instructions</p>
 <ul>
 <li><a href="https://docs.jax.dev/page/installation.html">JAX</a> for accelerated convolutions (including TPU)</li>
 <li><a href="https://docs.rapids.ai/install/">RAPIDS</a> (only <code>cuML</code> is required) for accelerated KMeans</li>
+<li><a href="https://pytorch.org/get-started/">torch</a> and <a href="https://github.com/CSOgroup/torchgmm">torchgmm</a> for accelerated GMM</li>
 </ul>
 
 

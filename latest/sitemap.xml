@@ -2,14 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://HiDiHlabs.github.io/SubDomain/latest/</loc>
-         <lastmod>2026-06-18</lastmod>
+         <lastmod>2026-06-30</lastmod>
     </url>
     <url>
          <loc>https://HiDiHlabs.github.io/SubDomain/latest/install/</loc>
-         <lastmod>2026-06-18</lastmod>
+         <lastmod>2026-06-30</lastmod>
     </url>
     <url>
          <loc>https://HiDiHlabs.github.io/SubDomain/latest/reference/</loc>
-         <lastmod>2026-06-18</lastmod>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://HiDiHlabs.github.io/SubDomain/latest/tutorial/</loc>
+         <lastmod>2026-06-30</lastmod>
     </url>
 </urlset>
