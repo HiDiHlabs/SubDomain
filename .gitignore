@@ -2,8 +2,8 @@
 build
 __pycache__
 
-# Sphinx
+# mkdocs
 site
+.cache
 
-*.ipynb
 .ipnyb_checkpoints
