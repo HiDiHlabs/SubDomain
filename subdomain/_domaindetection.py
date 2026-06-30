@@ -89,7 +89,7 @@ class SubDomain:
     Parameters
     ----------
     label_map : numpy.ndarray | jax.Array
-        An integer array where all positive values correspond to a specific cell type
+        An integer array where all positive values correspond to a specific label
         and negative values are background.
     label_name : str, optional
         Name of the labels.
@@ -126,7 +126,7 @@ class SubDomain:
         label_map: np.ndarray | jax.Array,
         /,
         *,
-        label_name: str = "celltype",
+        label_name: str = "label",
         labels: Iterable[str] | None = None,
     ):
         # TODO validate the unique indices
