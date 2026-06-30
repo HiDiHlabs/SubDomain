@@ -52,7 +52,9 @@ tbd
 
 # ToDo
 
-- Reduce dependencies by using jax-based GMM library (e.g. https://github.com/adonath/gmmx ?); allows dropping pytorch dependencies
+- Reduce dependencies by using a jax-based
+    - GMM library (e.g. https://github.com/adonath/gmmx ?); allows dropping pytorch dependencies
+    - K-means library (e.g. https://github.com/YosefLab/scib-metrics ?); allows dropping cupy dependencies
 - Test benefits of GPU acceleration. Currently likely memory constrained. Switch to CPU-only clustering?
 
 ## License
