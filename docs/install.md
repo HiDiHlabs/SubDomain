@@ -39,3 +39,4 @@ instructions
 
 - [JAX](https://docs.jax.dev/page/installation.html) for accelerated convolutions (including TPU)
 - [RAPIDS](https://docs.rapids.ai/install/) (only `cuML` is required) for accelerated KMeans
+- [torch](https://pytorch.org/get-started/) and [torchgmm](https://github.com/CSOgroup/torchgmm) for accelerated GMM
