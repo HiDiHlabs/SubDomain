@@ -50,6 +50,11 @@ For documentation of the package please refer to
 
 tbd
 
+# ToDo
+
+- Reduce dependencies by using jax-based GMM library (e.g. https://github.com/adonath/gmmx ?); allows dropping pytorch dependencies
+- Test benefits of GPU acceleration. Currently likely memory constrained. Switch to CPU-only clustering?
+
 ## License
 
 This project is licensed under the MIT License - for details please refer to the
