@@ -5,6 +5,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        exclude_types: ["jupyter"]
       - id: check-case-conflict
       - id: check-toml
       - id: check-yaml
@@ -27,6 +28,7 @@ repos:
     rev: v2.4.2
     hooks:
       - id: codespell
+        exclude_types: ["jupyter"]
         additional_dependencies:
           - tomli
   - repo: https://github.com/google/yamlfmt
